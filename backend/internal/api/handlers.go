@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"image/png"
 	"math/rand/v2"
 	stdhttp "net/http"
 	"strconv"
@@ -27,6 +28,8 @@ func (h *Handlers) Register(r chi.Router) {
 	r.Post("/api/quiz/giveup", h.giveup)
 	r.Get("/api/quiz/silhouette/{id}", h.silhouette) // legacy
 	r.Get("/api/quiz/silhouette/session/{sessionId}", h.silhouetteBySession)
+	r.Get("/api/quiz/artwork/session/{sessionId}", h.artworkBySession)
+	r.Get("/api/quiz/hint/{sessionId}", h.hintBySession)
 	r.Get("/api/quiz/search", h.search)
 }
 
@@ -188,6 +191,81 @@ func (h *Handlers) silhouetteBySession(w stdhttp.ResponseWriter, r *stdhttp.Requ
 	}
 	w.Header().Set("Content-Type", "image/png")
 	w.Write(data)
+}
+
+// artworkBySession returns the original official artwork PNG (color) after quiz finished (solved or gave up)
+func (h *Handlers) artworkBySession(w stdhttp.ResponseWriter, r *stdhttp.Request) {
+	sid := chi.URLParam(r, "sessionId")
+	sess, ok := h.store.Get(sid)
+	if !ok {
+		httpError(w, 404, "session not found")
+		return
+	}
+	if !sess.Solved && !sess.GaveUp { // forbid early reveal
+		httpError(w, 403, "not revealed yet")
+		return
+	}
+	img, err := h.poke.GetOfficialArtwork(sess.PokemonID)
+	if err != nil {
+		httpError(w, 404, err.Error())
+		return
+	}
+	// re-encode as PNG (original could already be PNG; we just encode our image.Image)
+	// Simple approach: use standard library png encoder.
+	w.Header().Set("Content-Type", "image/png")
+	// encode
+	// Avoid importing image/png at top? bring here (already imported via underscore in client elsewhere) need explicit import.
+	// We'll add png import at top of file.
+	if err := png.Encode(w, img); err != nil {
+		httpError(w, 500, err.Error())
+		return
+	}
+}
+
+type hintResponse struct {
+	Types       []string `json:"types"`
+	Region      string   `json:"region"`
+	FirstLetter string   `json:"firstLetter"`
+}
+
+var typeJP = map[string]string{
+	"normal": "ノーマル", "fire": "ほのお", "water": "みず", "grass": "くさ", "electric": "でんき", "ice": "こおり", "fighting": "かくとう", "poison": "どく", "ground": "じめん", "flying": "ひこう", "psychic": "エスパー", "bug": "むし", "rock": "いわ", "ghost": "ゴースト", "dragon": "ドラゴン", "dark": "あく", "steel": "はがね", "fairy": "フェアリー"}
+
+func regionJP(key string) string {
+	for _, r := range poke.Regions {
+		if r.Key == key {
+			return r.DisplayName
+		}
+	}
+	return key
+}
+
+func (h *Handlers) hintBySession(w stdhttp.ResponseWriter, r *stdhttp.Request) {
+	sid := chi.URLParam(r, "sessionId")
+	sess, ok := h.store.Get(sid)
+	if !ok {
+		httpError(w, 404, "session not found")
+		return
+	}
+	// first letter: prefer display name (Japanese) else english
+	name := sess.DisplayName
+	if name == "" {
+		name = sess.PokemonName
+	}
+	first := ""
+	for _, r := range name {
+		first = string(r)
+		break
+	}
+	tJP := make([]string, 0, len(sess.Types))
+	for _, t := range sess.Types {
+		if v, ok := typeJP[t]; ok {
+			tJP = append(tJP, v)
+		} else {
+			tJP = append(tJP, t)
+		}
+	}
+	writeJSON(w, hintResponse{Types: tJP, Region: regionJP(sess.RegionKey), FirstLetter: first})
 }
 
 // search returns list of candidate names (Japanese if available else English)
