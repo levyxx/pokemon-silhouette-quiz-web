@@ -122,6 +122,13 @@ type Species struct {
 		} `json:"language"`
 		Name string `json:"name"`
 	} `json:"names"`
+	Varieties []struct {
+		IsDefault bool `json:"is_default"`
+		Pokemon   struct {
+			Name string `json:"name"`
+			URL  string `json:"url"`
+		} `json:"pokemon"`
+	} `json:"varieties"`
 }
 
 func (c *Client) GetSpecies(id int) (Species, error) {
