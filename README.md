@@ -11,7 +11,6 @@ backend/                Go API サーバ
 	internal/poke         PokeAPIクライアント / 画像シルエット処理 / 地方定義
 	internal/quiz         セッション・ロジック
 frontend-react/         React + TypeScript + Vite
-frontend-vue/           Vue 3 + TypeScript + Vite
 ```
 
 ## エンドポイント(暫定)
