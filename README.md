@@ -19,7 +19,7 @@ frontend-vue/           Vue 3 + TypeScript + Vite
 - `POST /api/quiz/start` Body: `{regions:["kanto",...], allowMega:boolean, allowPrimal:boolean}` -> `{sessionId}`
 - `POST /api/quiz/guess` Body: `{sessionId, answer}` -> `{correct, solved, retryAfter}` (5秒制限あり)
 - `POST /api/quiz/giveup` Body: `{sessionId}` -> `{pokemonId, name, types, region}`
-- `GET  /api/quiz/silhouette/{id}` シルエット PNG (現状は start で選んだ ID をクライアント側に保持してないためダミー 1 固定参照部分あり)
+- `GET  /api/quiz/silhouette/{id}` シルエット PNG 
 
 ## セットアップ
 ### Backend
