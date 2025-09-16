@@ -48,7 +48,7 @@ func (h *Handlers) startQuiz(w stdhttp.ResponseWriter, r *stdhttp.Request) {
 		httpError(w, 400, err.Error())
 		return
 	}
-	ids := make([]int, 0)
+	baseIDs := make([]int, 0)
 	selected := map[string]bool{}
 	for _, rk := range req.Regions {
 		selected[rk] = true
@@ -57,36 +57,135 @@ func (h *Handlers) startQuiz(w stdhttp.ResponseWriter, r *stdhttp.Request) {
 	for _, rg := range poke.Regions {
 		if allSelected || selected[rg.Key] {
 			for id := rg.From; id <= rg.To; id++ {
-				ids = append(ids, id)
+				baseIDs = append(baseIDs, id)
 			}
 		}
 	}
-	if len(ids) == 0 {
+	if len(baseIDs) == 0 {
 		httpError(w, 400, "no pokemon range selected")
 		return
 	}
-	pick := ids[rand.IntN(len(ids))]
-	p, err := h.poke.GetPokemon(pick)
-	if err != nil {
-		httpError(w, 502, err.Error())
+
+	// Collect candidate forms (store as struct with PokemonID + display overrides)
+	type cand struct {
+		id    int
+		name  string
+		jp    string
+		types []string
+	}
+	candidates := make([]cand, 0, len(baseIDs))
+	for _, id := range baseIDs {
+		p, err := h.poke.GetPokemon(id)
+		if err != nil {
+			continue
+		}
+		// base
+		jpName, _ := h.poke.GetJapaneseName(id)
+		types := make([]string, 0, len(p.Types))
+		for _, t := range p.Types {
+			types = append(types, t.Type.Name)
+		}
+		candidates = append(candidates, cand{id: id, name: p.Name, jp: jpName, types: types})
+
+		// optional: forms (mega/primal) if allowed (and later filtered by region rules)
+		if req.AllowMega || req.AllowPrimal {
+			sp, err := h.poke.GetSpecies(id)
+			if err != nil {
+				continue
+			}
+			for _, v := range sp.Varieties {
+				// Skip default (base) already added
+				if v.IsDefault {
+					continue
+				}
+				n := v.Pokemon.Name // e.g. "charizard-mega-x"
+				lower := strings.ToLower(n)
+				isMega := strings.Contains(lower, "mega")
+				isPrimal := strings.Contains(lower, "primal") || strings.Contains(lower, "groudon-primal") || strings.Contains(lower, "kyogre-primal")
+				if (isMega && !req.AllowMega) || (isPrimal && !req.AllowPrimal) {
+					continue
+				}
+				// Regional form filter (alola/galar/hisui/paldea) -> これらは選択された地方に含まれていない場合除外
+				// 名前に "-alola", "-galar", "-hisui", "-paldea" 等を含む場合に該当
+				regionalTag := ""
+				if strings.Contains(lower, "-alola") {
+					regionalTag = "alola"
+				}
+				if strings.Contains(lower, "-galar") {
+					regionalTag = "galar"
+				}
+				if strings.Contains(lower, "-hisui") {
+					regionalTag = "hisui"
+				} // Hisui -> 現在 Regions に hisui は無いが将来的拡張考慮
+				if strings.Contains(lower, "-paldea") {
+					regionalTag = "paldea"
+				}
+				if regionalTag != "" {
+					// Regions に存在しないタグ (hisui) は、現在選択対象にない限り除外（hisui 未サポートのためデフォ除外）
+					if !allSelected { // 全選択であれば残す
+						if _, ok := selected[regionalTag]; !ok {
+							continue
+						}
+					}
+				}
+				// Extract id from pokemon URL (ends with /pokemon/{id}/)
+				// URL pattern: https://pokeapi.co/api/v2/pokemon/{id}/
+				parts := strings.Split(strings.TrimSuffix(v.Pokemon.URL, "/"), "/")
+				if len(parts) < 1 {
+					continue
+				}
+				idStr := parts[len(parts)-1]
+				formID, err := strconv.Atoi(idStr)
+				if err != nil {
+					continue
+				}
+				fp, err := h.poke.GetPokemon(formID)
+				if err != nil {
+					continue
+				}
+				fTypes := make([]string, 0, len(fp.Types))
+				for _, t := range fp.Types {
+					fTypes = append(fTypes, t.Type.Name)
+				}
+				// Japanese name for form: fallback to base JP if specific not provided (species names are species-level)
+				// For now we use base species JP so AcceptAnswers include both base JP and base EN; form-specific english kept.
+				candidates = append(candidates, cand{id: formID, name: fp.Name, jp: jpName, types: fTypes})
+			}
+		}
+	}
+	if len(candidates) == 0 {
+		httpError(w, 500, "no candidates available")
 		return
 	}
-	jpName, _ := h.poke.GetJapaneseName(pick)
-	types := make([]string, 0, len(p.Types))
-	for _, t := range p.Types {
-		types = append(types, t.Type.Name)
-	}
+	picked := candidates[rand.IntN(len(candidates))]
+	// region determination uses national dex id (base id mapping). For forms, fallback to underlying species base id logic (approx: if larger id, still find by baseIDs inclusion).
 	regionKey := ""
 	for _, rg := range poke.Regions {
-		if rg.ContainsNationalID(pick) {
+		if rg.ContainsNationalID(picked.id) {
 			regionKey = rg.Key
 			break
 		}
 	}
-	sess := quiz.NewSession(pick, p.Name, regionKey, types, req.AllowMega, req.AllowPrimal)
-	if jpName != "" {
-		sess.DisplayName = jpName
-		sess.AcceptAnswers = append(sess.AcceptAnswers, jpName)
+	sess := quiz.NewSession(picked.id, picked.name, regionKey, picked.types, req.AllowMega, req.AllowPrimal)
+	if picked.jp != "" {
+		sess.DisplayName = picked.jp
+		sess.AcceptAnswers = append(sess.AcceptAnswers, picked.jp)
+	}
+	// Accept base english name if form (strip suffix after last '-')
+	if strings.Contains(picked.name, "-") {
+		base := picked.name
+		if idx := strings.Index(base, "-mega"); idx > 0 {
+			base = base[:idx]
+		}
+		if idx := strings.Index(base, "-primal"); idx > 0 {
+			base = base[:idx]
+		}
+		if idx := strings.Index(base, "-gmax"); idx > 0 {
+			base = base[:idx]
+		}
+		if base != picked.name {
+			sess.AcceptAnswers = append(sess.AcceptAnswers, base)
+		}
 	}
 	h.store.Set(sess)
 	writeJSON(w, startResponse{SessionID: sess.ID})
