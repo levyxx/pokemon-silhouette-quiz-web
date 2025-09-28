@@ -13,12 +13,16 @@ backend/                Go API サーバ
 frontend-react/         React + TypeScript + Vite
 ```
 
-## エンドポイント(暫定)
+## エンドポイント
 - `GET  /health` ヘルスチェック
 - `POST /api/quiz/start` Body: `{regions:["kanto",...], allowMega:boolean, allowPrimal:boolean}` -> `{sessionId}`
+  - メガシンカ・ゲンシカイキ対応、地域フォーム（アローラ・ガラル等）フィルタ対応
 - `POST /api/quiz/guess` Body: `{sessionId, answer}` -> `{correct, solved, retryAfter}` (5秒制限あり)
 - `POST /api/quiz/giveup` Body: `{sessionId}` -> `{pokemonId, name, types, region}`
-- `GET  /api/quiz/silhouette/{id}` シルエット PNG 
+- `GET  /api/quiz/silhouette/{sessionId}` セッション対応シルエット PNG
+- `GET  /api/quiz/artwork/{sessionId}` 結果用カラーアートワーク PNG (クリア/ギブアップ後のみ)
+- `GET  /api/quiz/hint/{sessionId}` ヒント情報 -> `{types:["ほのお",...], region:"カントー", firstLetter:"フ"}`
+- `GET  /api/quiz/search?prefix=フシ` 名前補完候補 -> `["フシギダネ", "フシギソウ", ...]` (日本語優先) 
 
 ## セットアップ
 ### Backend
