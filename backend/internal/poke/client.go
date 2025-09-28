@@ -61,26 +61,32 @@ func (c *Client) GetPokemon(id int) (Pokemon, error) {
 		return ce.v, nil
 	}
 	c.mu.RUnlock()
+
 	url := fmt.Sprintf("%s/pokemon/%d", baseURL, id)
 	resp, err := c.http.Get(url)
 	if err != nil {
 		return Pokemon{}, err
 	}
 	defer resp.Body.Close()
+
 	if resp.StatusCode != 200 {
 		return Pokemon{}, fmt.Errorf("pokeapi status %d", resp.StatusCode)
 	}
+
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return Pokemon{}, err
 	}
+
 	var p Pokemon
 	if err := json.Unmarshal(data, &p); err != nil {
 		return Pokemon{}, err
 	}
+
 	c.mu.Lock()
 	c.pokemonCh[id] = &cacheEntry[Pokemon]{v: p, exp: time.Now().Add(c.ttl)}
 	c.mu.Unlock()
+
 	return p, nil
 }
 
@@ -91,26 +97,32 @@ func (c *Client) GetOfficialArtwork(id int) (image.Image, error) {
 		return ce.v, nil
 	}
 	c.mu.RUnlock()
+
 	p, err := c.GetPokemon(id)
 	if err != nil {
 		return nil, err
 	}
+
 	art := p.Sprites.Other.OfficialArtwork.FrontDefault
 	if art == "" {
 		return nil, fmt.Errorf("no artwork")
 	}
+
 	resp, err := c.http.Get(art)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
+
 	img, _, err := image.Decode(resp.Body)
 	if err != nil {
 		return nil, err
 	}
+
 	c.mu.Lock()
 	c.spriteCh[id] = &cacheEntry[image.Image]{v: img, exp: time.Now().Add(c.ttl)}
 	c.mu.Unlock()
+
 	return img, nil
 }
 
@@ -138,26 +150,32 @@ func (c *Client) GetSpecies(id int) (Species, error) {
 		return ce.v, nil
 	}
 	c.mu.RUnlock()
+
 	url := fmt.Sprintf("%s/pokemon-species/%d", baseURL, id)
 	resp, err := c.http.Get(url)
 	if err != nil {
 		return Species{}, err
 	}
 	defer resp.Body.Close()
+
 	if resp.StatusCode != 200 {
 		return Species{}, fmt.Errorf("species status %d", resp.StatusCode)
 	}
+
 	data, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return Species{}, err
 	}
+
 	var sp Species
 	if err := json.Unmarshal(data, &sp); err != nil {
 		return Species{}, err
 	}
+
 	c.mu.Lock()
 	c.speciesCh[id] = &cacheEntry[Species]{v: sp, exp: time.Now().Add(c.ttl)}
 	c.mu.Unlock()
+
 	return sp, nil
 }
 
@@ -167,6 +185,7 @@ func (c *Client) GetJapaneseName(id int) (string, error) {
 	if err != nil {
 		return "", err
 	}
+
 	var ja string
 	for _, n := range sp.Names {
 		if n.Language.Name == "ja-Hrkt" {
@@ -176,8 +195,10 @@ func (c *Client) GetJapaneseName(id int) (string, error) {
 			ja = n.Name
 		}
 	}
+
 	if ja != "" {
 		return ja, nil
 	}
+
 	return "", fmt.Errorf("japanese name not found")
 }

@@ -48,11 +48,13 @@ func (h *Handlers) startQuiz(w stdhttp.ResponseWriter, r *stdhttp.Request) {
 		httpError(w, 400, err.Error())
 		return
 	}
+
 	baseIDs := make([]int, 0)
 	selected := map[string]bool{}
 	for _, rk := range req.Regions {
 		selected[rk] = true
 	}
+
 	allSelected := len(selected) == 0
 	for _, rg := range poke.Regions {
 		if allSelected || selected[rg.Key] {
@@ -61,6 +63,7 @@ func (h *Handlers) startQuiz(w stdhttp.ResponseWriter, r *stdhttp.Request) {
 			}
 		}
 	}
+
 	if len(baseIDs) == 0 {
 		httpError(w, 400, "no pokemon range selected")
 		return
@@ -98,6 +101,7 @@ func (h *Handlers) startQuiz(w stdhttp.ResponseWriter, r *stdhttp.Request) {
 				if v.IsDefault {
 					continue
 				}
+
 				n := v.Pokemon.Name // e.g. "charizard-mega-x"
 				lower := strings.ToLower(n)
 				isMega := strings.Contains(lower, "mega")
@@ -166,6 +170,7 @@ func (h *Handlers) startQuiz(w stdhttp.ResponseWriter, r *stdhttp.Request) {
 			break
 		}
 	}
+
 	sess := quiz.NewSession(picked.id, picked.name, regionKey, picked.types, req.AllowMega, req.AllowPrimal)
 	if picked.jp != "" {
 		sess.DisplayName = picked.jp
@@ -183,10 +188,12 @@ func (h *Handlers) startQuiz(w stdhttp.ResponseWriter, r *stdhttp.Request) {
 		if idx := strings.Index(base, "-gmax"); idx > 0 {
 			base = base[:idx]
 		}
+
 		if base != picked.name {
 			sess.AcceptAnswers = append(sess.AcceptAnswers, base)
 		}
 	}
+
 	h.store.Set(sess)
 	writeJSON(w, startResponse{SessionID: sess.ID})
 }
@@ -207,21 +214,25 @@ func (h *Handlers) guess(w stdhttp.ResponseWriter, r *stdhttp.Request) {
 		httpError(w, 400, err.Error())
 		return
 	}
+
 	sess, ok := h.store.Get(req.SessionID)
 	if !ok {
 		httpError(w, 404, "session not found")
 		return
 	}
+
 	correct, err := sess.SubmitGuess(req.Answer)
 	if err == quiz.ErrTooSoon {
 		remaining := int((quiz.AllowedGuessInterval - time.Since(sess.LastGuessAt)).Seconds())
 		writeJSON(w, guessResponse{Correct: false, Solved: false, RetryAfter: remaining})
 		return
 	}
+
 	if err == quiz.ErrAlreadyFinished {
 		writeJSON(w, guessResponse{Correct: false, Solved: true})
 		return
 	}
+
 	writeJSON(w, guessResponse{Correct: correct, Solved: sess.Solved})
 }
 
@@ -241,16 +252,19 @@ func (h *Handlers) giveup(w stdhttp.ResponseWriter, r *stdhttp.Request) {
 		httpError(w, 400, err.Error())
 		return
 	}
+
 	sess, ok := h.store.Get(req.SessionID)
 	if !ok {
 		httpError(w, 404, "session not found")
 		return
 	}
 	sess.GiveUp()
+
 	name := sess.PokemonName
 	if sess.DisplayName != "" {
 		name = sess.DisplayName
 	}
+
 	writeJSON(w, resultResponse{PokemonID: sess.PokemonID, Name: name, Types: sess.Types, Region: sess.RegionKey})
 }
 
@@ -262,11 +276,13 @@ func (h *Handlers) silhouette(w stdhttp.ResponseWriter, r *stdhttp.Request) {
 		httpError(w, 404, err.Error())
 		return
 	}
+
 	data, err := poke.ToSilhouette(img)
 	if err != nil {
 		httpError(w, 500, err.Error())
 		return
 	}
+
 	w.Header().Set("Content-Type", "image/png")
 	w.Write(data)
 }
@@ -278,16 +294,19 @@ func (h *Handlers) silhouetteBySession(w stdhttp.ResponseWriter, r *stdhttp.Requ
 		httpError(w, 404, "session not found")
 		return
 	}
+
 	img, err := h.poke.GetOfficialArtwork(sess.PokemonID)
 	if err != nil {
 		httpError(w, 404, err.Error())
 		return
 	}
+
 	data, err := poke.ToSilhouette(img)
 	if err != nil {
 		httpError(w, 500, err.Error())
 		return
 	}
+
 	w.Header().Set("Content-Type", "image/png")
 	w.Write(data)
 }
@@ -300,10 +319,12 @@ func (h *Handlers) artworkBySession(w stdhttp.ResponseWriter, r *stdhttp.Request
 		httpError(w, 404, "session not found")
 		return
 	}
+
 	if !sess.Solved && !sess.GaveUp { // forbid early reveal
 		httpError(w, 403, "not revealed yet")
 		return
 	}
+
 	img, err := h.poke.GetOfficialArtwork(sess.PokemonID)
 	if err != nil {
 		httpError(w, 404, err.Error())
@@ -336,6 +357,7 @@ func regionJP(key string) string {
 			return r.DisplayName
 		}
 	}
+
 	return key
 }
 
@@ -346,16 +368,19 @@ func (h *Handlers) hintBySession(w stdhttp.ResponseWriter, r *stdhttp.Request) {
 		httpError(w, 404, "session not found")
 		return
 	}
+
 	// first letter: prefer display name (Japanese) else english
 	name := sess.DisplayName
 	if name == "" {
 		name = sess.PokemonName
 	}
+
 	first := ""
 	for _, r := range name {
 		first = string(r)
 		break
 	}
+
 	tJP := make([]string, 0, len(sess.Types))
 	for _, t := range sess.Types {
 		if v, ok := typeJP[t]; ok {
@@ -382,11 +407,13 @@ func (h *Handlers) search(w stdhttp.ResponseWriter, r *stdhttp.Request) {
 		if err != nil {
 			continue
 		}
+
 		jp, _ := h.poke.GetJapaneseName(id)
 		name := p.Name
 		if jp != "" {
 			name = jp
 		}
+
 		if strings.HasPrefix(strings.ToLower(name), prefix) {
 			out = append(out, name)
 			if len(out) >= 50 {
