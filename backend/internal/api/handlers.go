@@ -26,7 +26,6 @@ func (h *Handlers) Register(r chi.Router) {
 	r.Post("/api/quiz/start", h.startQuiz)
 	r.Post("/api/quiz/guess", h.guess)
 	r.Post("/api/quiz/giveup", h.giveup)
-	r.Get("/api/quiz/silhouette/{id}", h.silhouette) // legacy
 	r.Get("/api/quiz/silhouette/session/{sessionId}", h.silhouetteBySession)
 	r.Get("/api/quiz/artwork/session/{sessionId}", h.artworkBySession)
 	r.Get("/api/quiz/hint/{sessionId}", h.hintBySession)
@@ -266,25 +265,6 @@ func (h *Handlers) giveup(w stdhttp.ResponseWriter, r *stdhttp.Request) {
 	}
 
 	writeJSON(w, resultResponse{PokemonID: sess.PokemonID, Name: name, Types: sess.Types, Region: sess.RegionKey})
-}
-
-func (h *Handlers) silhouette(w stdhttp.ResponseWriter, r *stdhttp.Request) {
-	idStr := chi.URLParam(r, "id")
-	id, _ := strconv.Atoi(idStr)
-	img, err := h.poke.GetOfficialArtwork(id)
-	if err != nil {
-		httpError(w, 404, err.Error())
-		return
-	}
-
-	data, err := poke.ToSilhouette(img)
-	if err != nil {
-		httpError(w, 500, err.Error())
-		return
-	}
-
-	w.Header().Set("Content-Type", "image/png")
-	w.Write(data)
 }
 
 func (h *Handlers) silhouetteBySession(w stdhttp.ResponseWriter, r *stdhttp.Request) {
