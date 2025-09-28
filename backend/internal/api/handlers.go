@@ -26,8 +26,8 @@ func (h *Handlers) Register(r chi.Router) {
 	r.Post("/api/quiz/start", h.startQuiz)
 	r.Post("/api/quiz/guess", h.guess)
 	r.Post("/api/quiz/giveup", h.giveup)
-	r.Get("/api/quiz/silhouette/session/{sessionId}", h.silhouetteBySession)
-	r.Get("/api/quiz/artwork/session/{sessionId}", h.artworkBySession)
+	r.Get("/api/quiz/silhouette/{sessionId}", h.silhouetteBySession)
+	r.Get("/api/quiz/artwork/{sessionId}", h.artworkBySession)
 	r.Get("/api/quiz/hint/{sessionId}", h.hintBySession)
 	r.Get("/api/quiz/search", h.search)
 }

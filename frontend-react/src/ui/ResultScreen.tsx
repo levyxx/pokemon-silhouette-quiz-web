@@ -20,7 +20,7 @@ export const ResultScreen: React.FC<{session:SessionState; onNext:()=>void; onBa
       <h2 style={{fontSize:32, marginBottom:24}}>結果</h2>
       <div style={{display:'flex', flexDirection:'column', alignItems:'center', gap:24}}>
         <div style={{width:420,height:420, background:'#fff', display:'flex',alignItems:'center',justifyContent:'center', border:'2px solid #ccc', borderRadius:16, boxShadow:'0 4px 14px rgba(0,0,0,0.15)'}}>
-          <img src={`/api/quiz/artwork/session/${session.sessionId}?ts=${Date.now()}`} alt={session.answer} style={{maxWidth:'100%', maxHeight:'100%'}} />
+          <img src={`/api/quiz/artwork/${session.sessionId}?ts=${Date.now()}`} alt={session.answer} style={{maxWidth:'100%', maxHeight:'100%'}} />
         </div>
         <div style={{fontSize:28}}>答え: <strong>{session.answer}</strong></div>
       </div>

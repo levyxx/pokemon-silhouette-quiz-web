@@ -112,7 +112,10 @@ export const QuizScreen: React.FC<Props> = ({session,onSolved,onGiveUp,onAbort})
         .then((arr: string[]) => setCandidates(arr))
         .catch(() => { });
     }, 200);
-    return () => { controller.abort(); clearTimeout(t); };
+    return () => {
+      controller.abort();
+      clearTimeout(t);
+    };
   }, [input]);
 
   return (
@@ -120,7 +123,7 @@ export const QuizScreen: React.FC<Props> = ({session,onSolved,onGiveUp,onAbort})
       <h2 style={{fontSize:32, marginBottom:24}}>シルエットを当てよう</h2>
       <div style={{display:'flex', gap:32, alignItems:'flex-start', justifyContent:'center', width:'100%', maxWidth:1000}}>
         <div style={{flex:'0 0 auto', width:400, height:400, background:'#eee', border:'2px solid #ccc', borderRadius:12, display:'flex',alignItems:'center',justifyContent:'center', boxShadow:'0 4px 12px rgba(0,0,0,0.15)'}}>
-          <img src={`/api/quiz/silhouette/session/${session.sessionId}?ts=${Date.now()}`} alt="silhouette" style={{maxWidth:'100%', maxHeight:'100%'}} />
+          <img src={`/api/quiz/silhouette/${session.sessionId}?ts=${Date.now()}`} alt="silhouette" style={{maxWidth:'100%', maxHeight:'100%'}} />
         </div>
         <div style={{flex:'1 1 auto', minWidth:260}}>
           <div style={{display:'flex', gap:12, marginBottom:16}}>
