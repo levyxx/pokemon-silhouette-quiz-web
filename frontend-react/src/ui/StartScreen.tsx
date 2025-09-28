@@ -12,13 +12,13 @@ export const StartScreen: React.FC<{onStarted:(sessionId:string, config:Config)=
   const [allowMega, setAllowMega] = useState(initialConfig?.allowMega ?? false);
   const [allowPrimal, setAllowPrimal] = useState(initialConfig?.allowPrimal ?? false);
   useEffect(()=>{
-    if(initialConfig){
+    if (initialConfig) {
       setSelected(initialConfig.regions);
       setAllowMega(initialConfig.allowMega);
       setAllowPrimal(initialConfig.allowPrimal);
     }
-  },[initialConfig]);
-  const toggle = (k:string)=> setSelected(s=> s.includes(k)? s.filter(x=>x!==k): [...s,k]);
+  }, [initialConfig]);
+  const toggle = (k:string) => setSelected(s => s.includes(k) ? s.filter(x=>x!==k) : [...s,k]);
 
   const start = async () => {
     const res = await fetch('/api/quiz/start', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({regions:selected, allowMega:allowMega, allowPrimal:allowPrimal})});

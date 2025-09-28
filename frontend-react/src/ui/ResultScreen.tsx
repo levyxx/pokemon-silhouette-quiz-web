@@ -2,14 +2,19 @@ import React, { useEffect } from 'react';
 import type { SessionState } from './App';
 
 export const ResultScreen: React.FC<{session:SessionState; onNext:()=>void; onBack:()=>void}> = ({session,onNext,onBack}) => {
-  useEffect(()=>{
-    const handler = (e:KeyboardEvent) => {
-      if(e.key === 'Enter'){ e.preventDefault(); onNext(); }
-      else if(e.key === 'Escape'){ e.preventDefault(); onBack(); }
+  useEffect(() => {
+    const handler = (keyEvent: KeyboardEvent) => {
+      if (keyEvent.key === 'Enter') {
+        keyEvent.preventDefault();
+        onNext();
+      }else if (keyEvent.key === 'Escape'){
+        keyEvent.preventDefault();
+        onBack();
+      }
     };
     window.addEventListener('keydown', handler);
-    return ()=> window.removeEventListener('keydown', handler);
-  },[onNext,onBack]);
+    return () => window.removeEventListener('keydown', handler);
+  }, [onNext, onBack]);
   return (
     <div style={{display:'flex', flexDirection:'column', alignItems:'center', padding:'32px 16px'}}>
       <h2 style={{fontSize:32, marginBottom:24}}>結果</h2>

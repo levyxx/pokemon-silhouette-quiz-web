@@ -18,34 +18,49 @@ export const QuizScreen: React.FC<Props> = ({session,onSolved,onGiveUp,onAbort})
   const retryAfterRef = useRef<number>(0);
 
   const ensureHint = async () => {
-    if (hint) return;
+    if (hint) {
+      return;
+    }
     const res = await fetch(`/api/quiz/hint/${session.sessionId}`);
-    if(res.ok){ setHint(await res.json()); }
+    if(res.ok){
+      setHint(await res.json());
+    }
   };
-  const revealType = async () => { await ensureHint(); setShowType(true); };
-  const revealRegion = async () => { await ensureHint(); setShowRegion(true); };
-  const revealFirst = async () => { await ensureHint(); setShowFirst(true); };
+  const revealType = async () => {
+    await ensureHint();
+    setShowType(true);
+  };
+  const revealRegion = async () => {
+    await ensureHint();
+    setShowRegion(true);
+  };
+  const revealFirst = async () => {
+    await ensureHint();
+    setShowFirst(true);
+  };
 
   useEffect(()=>{
     // 自動フォーカス（遷移直後）
     inputRef.current?.focus();
-  },[]);
+  }, []);
 
   // Enter キーで解答
-  useEffect(()=>{
-    const handler = (e:KeyboardEvent) => {
-      if(e.key === 'Enter') {
-        e.preventDefault();
+  useEffect(() => {
+    const handler = (keyEvent:KeyboardEvent) => {
+      if(keyEvent.key === 'Enter') {
+        keyEvent.preventDefault();
         submit();
       }
     };
     window.addEventListener('keydown', handler);
-    return ()=> window.removeEventListener('keydown', handler);
-  },[input, session]);
+    return () => window.removeEventListener('keydown', handler);
+  }, [input, session]);
 
   const submit = async () => {
-    if(!input) return;
-    if(retryAfterRef.current>0){
+    if(!input) {
+      return;
+    }
+    if (retryAfterRef.current>0){
       setMessage('回答は5秒空けてください');
       return;
     }
@@ -53,12 +68,24 @@ export const QuizScreen: React.FC<Props> = ({session,onSolved,onGiveUp,onAbort})
     const res = await fetch('/api/quiz/guess', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({sessionId: session.sessionId, answer: input})});
     const data: GuessResp = await res.json();
     setLoading(false);
-    if(data.retryAfter){ retryAfterRef.current = data.retryAfter; setMessage('回答は5秒空けてください'); }
-    else if(data.correct){ setMessage('正解!'); onSolved({pokemonId:0, answer: input}); }
-    else if(data.solved){ onSolved({pokemonId:0, answer: input}); }
-    else { setMessage('はずれ'); }
+    if (data.retryAfter) {
+      retryAfterRef.current = data.retryAfter;
+      setMessage('回答は5秒空けてください');
+    }else if (data.correct) {
+      setMessage('正解!');
+      onSolved({pokemonId:0, answer: input});
+    }else if (data.solved) {
+      onSolved({pokemonId:0, answer: input});
+    }else {
+      setMessage('はずれ');
+    }
     // 5秒後にクールダウン解除 (バックエンドと同じ間隔) -> 自動でメッセージクリアはしない
-    if(data.retryAfter){ setTimeout(()=>{ retryAfterRef.current = 0; }, data.retryAfter * 1000); }
+    if(data.retryAfter){
+      setTimeout(() => {
+        retryAfterRef.current = 0;
+      },
+      data.retryAfter * 1000);
+    }
   };
 
   const giveUp = async () => {
@@ -68,19 +95,25 @@ export const QuizScreen: React.FC<Props> = ({session,onSolved,onGiveUp,onAbort})
   };
 
   // dynamic candidate search (Japanese or English)
-  useEffect(()=>{
+  useEffect(() => {
     const controller = new AbortController();
-    if(!input){ setCandidates([]); return; }
+    if (!input) {
+      setCandidates([]);
+      return;
+    }
     const q = input.trim();
-    if(!q){ setCandidates([]); return; }
-    const t = setTimeout(()=>{
-      fetch(`/api/quiz/search?prefix=${encodeURIComponent(q)}`, {signal: controller.signal})
-        .then(r=> r.ok ? r.json(): [])
-        .then((arr:string[])=> setCandidates(arr))
-        .catch(()=>{});
+    if (!q) {
+      setCandidates([]);
+      return;
+    }
+    const t = setTimeout(() => {
+      fetch(`/api/quiz/search?prefix=${encodeURIComponent(q)}`, { signal: controller.signal })
+        .then(r => r.ok ? r.json() : [])
+        .then((arr: string[]) => setCandidates(arr))
+        .catch(() => { });
     }, 200);
-    return ()=>{ controller.abort(); clearTimeout(t); };
-  },[input]);
+    return () => { controller.abort(); clearTimeout(t); };
+  }, [input]);
 
   return (
     <div style={{display:'flex', flexDirection:'column', alignItems:'center', padding:'24px 16px'}}>
