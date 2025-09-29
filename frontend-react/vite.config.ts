@@ -3,6 +3,11 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
+  build: {
+    outDir: 'dist',
+    sourcemap: false,
+    minify: 'terser'
+  },
   server: {
     port: 5173,
     // 既に 5173 使用中なら自動で別ポートへ (固定したいなら strictPort:true)
